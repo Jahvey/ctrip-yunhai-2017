@@ -21,7 +21,7 @@ new_month_id_grouped_pq = month_id_grouped_pq['ciiquantity'].agg(np.sum).reset_i
 
 # get number of product for each month
 product_grouped = new_month_id_grouped_pq.groupby('product_date')['product_id']
-#print product_grouped.count()
+print product_grouped.count()
 
 month_grouped = new_month_id_grouped_pq.groupby('product_date')
 for key,items in month_grouped:
