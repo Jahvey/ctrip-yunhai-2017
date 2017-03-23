@@ -24,11 +24,11 @@ def gen_training_data(c_pq,c_pi,group_index,target_label,dirPath):
 	col_grouped = grouped_pq.groupby(group_index[0])
 	for key,items in col_grouped:
 		if target_label == 'product':
-			filePath = dirPath+str(key)
+			filePath = dirPath+str(key)+'.csv'
 			dropped_items = items.drop(group_index[0],axis=1)
 			training_data = dropped_items			
 		else:
-			filePath = dirPath+str(key)
+			filePath = dirPath+str(key)+'.csv'
 			dropped_items = items.drop(group_index[0],axis=1)
 			training_data = pd.merge(c_pi,dropped_items)
 		save_data(training_data,filePath)
@@ -43,11 +43,16 @@ def product_fig(inPath,outPath):
 	product_start_idx = 1
 	product_end_idx = 4000
 	for i in range(product_start_idx,product_end_idx+1):
-		filePath = inPath+str(i)
+		filePath = inPath+str(i)+'.csv'
 		if os.path.exists(filePath):
 			print i
-			product_data = pd.read_csv(inPath+str(i))
-			plt.plot(pd.to_datetime(product_data['product_date']),product_data['ciiquantity'])
+			product_data = pd.read_csv(filePath)
+			# set product_date as datetime index
+			product_data['product_date'] = pd.to_datetime(product_data['product_date'])
+			date_index_product_data = product_data.set_index('product_date')
+			# plot ciiquantity
+			plt.figure()
+			date_index_product_data.ciiquantity.plot(x_compat=True)
 			plt.savefig(outPath+str(i))
 			plt.close()
 		else:
@@ -67,7 +72,8 @@ c_pq.set_index(['product_id','product_date'])
 c_pi = pi.copy()
 c_pq['product_date'] = c_pq['product_date'].apply(lambda x:x[:7])
 
-gen_training_data(c_pq,c_pi,['product_id','product_date'],'product',product_dirPath)
+#gen_training_data(c_pq,c_pi,['product_id','product_date'],'product',product_dirPath)
+#gen_training_data(c_pq,c_pi,['product_date','product_id'],'month',month_dirPath)
 
 product_not_exist = product_fig(product_dirPath,product_figPath)
 print 'product_not_exist: ',product_not_exist,'\nnumber of product not exist: ',len(product_not_exist)
