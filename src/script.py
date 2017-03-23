@@ -6,6 +6,20 @@ def saveData(data,filePath):
 	data.to_csv(f,index=False)
 	f.close()
 
+def exit_wrapper(func):
+	def wrapper(*args,**kwargs):
+		func(*args,**kwargs)
+		exit()
+	return wrapper
+
+@exit_wrapper
+def show_grouped_data(grouped_data):
+	for key,items in grouped_data:
+		print key
+		for subitem in items:
+			print subitem
+		print '-' * 30
+
 dirPath = '../training_data/'
 pq = pd.read_csv('../product_data/product_quantity.txt')
 pi = pd.read_csv('../product_data/product_info.txt')
@@ -16,7 +30,7 @@ c_pi = pi.copy()
 
 c_pq['product_date'] = c_pq['product_date'].apply(lambda x:x[:7])
 month_id_grouped_pq = c_pq.groupby(['product_date','product_id'])
-
+show_grouped_data(month_id_grouped_pq)
 new_month_id_grouped_pq = month_id_grouped_pq['ciiquantity'].agg(np.sum).reset_index()
 
 # get number of product for each month
