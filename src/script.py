@@ -21,8 +21,11 @@ def gen_training_data(c_pq,c_pi,group_index,target_label,dirPath):
 	grouped_pq = c_pq.groupby(group_index)['ciiquantity'].agg(np.sum).reset_index()
     	counter_grouped = grouped_pq.groupby(group_index[0])[group_index[1]]
     	print counter_grouped.count()
+	# plot missing month ciiquantity for each product
+	# plt.show(counter_grouped.count().plot(kind='bar'))
+	# exit()
 	col_grouped = grouped_pq.groupby(group_index[0])
-        for key,items in col_grouped:
+	for key,items in col_grouped:
 		filePath = dirPath+str(key)+'.csv'
 		if target_label == 'product':
 			dropped_items = items.drop(group_index[0],axis=1)
