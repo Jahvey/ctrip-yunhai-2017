@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from collections import Counter
 
-productQuantityPath = "product_data/product_quantity.txt"
-outputPath = "train_data/month/"
+productQuantityPath = "../product_data/product_quantity.txt"
+outputPath = "../training_data/month/"
 #
 #load data
 dfQuantity = pd.read_csv(productQuantityPath,index_col='product_date',parse_dates=True,
