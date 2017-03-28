@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+from product_not_exist_info import *
+from script import *
 
 def get_month_ratio():
 	month_dirPath = '../training_data/month/'
@@ -92,9 +95,44 @@ if __name__ == '__main__':
 	date_set = ['startdate','cooperatedate']
 	for dat in date_set:
 		data.loc[:,dat] = map(lambda x:get_month_from_date(x),data[dat])
-	cluster_cols = ['district_id1','district_id2','district_id3','district_id4','lat','lon','eval','eval2','eval3','eval4','voters','startdate','cooperatedate','maxstock']	
+	cluster_cols = ['product_id','district_id1','district_id2','district_id3','district_id4','lat','lon','eval','eval2','eval3','eval4','voters','startdate','cooperatedate','maxstock']	
 	cluster_data = data[cluster_cols]
 
 	dummy_cols = ['district_id1','district_id2','district_id3','district_id4','eval','eval2','startdate','cooperatedate']	
 	cluster_data = pd.get_dummies(cluster_data,columns=dummy_cols)
+	
+	s_product_not_exist = set(product_not_exist)
+	s_product_id = set(cluster_data['product_id'])
+	product_pool = list(s_product_id - s_product_not_exist)
+	nn_pair = {}
+	
+	for id_1 in product_not_exist[0:2]:
+			
+			dists = []
+			for id_2 in product_pool:
+				dist = np.sqrt( np.sum( (cluster_data.loc[id_1 - 1][1:cluster_data.shape[1]] - cluster_data.loc[id_2 - 1][1:cluster_data.shape[1]])**2 ) )
+				dists.append([id_1,id_2,dist])
+			params = sorted(dists,key=lambda d:d[2],reverse=False)
+			print 'Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
+			nn_pair[params[0][0]] = params[0][1]
+	print len(nn_pair),nn_pair
+	predict_dirPath = '../predict_data/'
+	
+	predict_data = pd.DataFrame()
+	cq_min_num = 1
+	cq_max_num = 23
+	for i in range(cq_min_num,cq_max_num + 1):
+		cq_data = pd.read_csv(predict_dirPath+str(i)+'.csv')
+		cols = range(cq_data.shape[1] - 14,cq_data.shape[1])
+		cols.insert(0,0)
+		tmp = cq_data.iloc[:,cols]
+		tmp.columns = range(14+1)
+		predict_data = predict_data.append(tmp,ignore_index=True)
+
+	for key in nn_pair:
+		index = predict_data[0][predict_data[0] == nn_pair[key]].index
+		partner = predict_data.loc[index].copy()
+		partner[0] = key
+		predict_data = predict_data.append(partner)
+	save_data(predict_data,'../submission.csv')
 	pass
