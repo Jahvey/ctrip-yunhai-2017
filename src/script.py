@@ -3,6 +3,144 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+def month_mean(data,window,valid_month_num):
+	data = np.array(data)
+	valid_month = valid_month_num
+	sample_num = data.shape[0]
+	try:
+		weight = np.array([[1.0/window]] * window)
+	except ZeroDivisionError:
+		print '[TRAIN_ERR]:window len = 0!'
+	test_data = data[:,0:data.shape[1]-valid_month]
+	errors = []
+	for i in range(0,valid_month):
+		# index=0 indicates the column product_id
+		if test_data.shape[1] - window == 0:
+			raise ValueError('[TRAIN_ERROR]:product_id can\'t be used!')
+		cur_cq = np.dot(test_data[:,test_data.shape[1] - window:test_data.shape[1]],weight)
+		test_data = np.column_stack((test_data,cur_cq))
+	try:
+		valid_err = np.sqrt( np.sum( (data-test_data)**2 ) / (valid_month*sample_num) )
+	except ZeroDivisionError:
+		print'[TRAIN_ERROR]:sample_num = 0!'
+	return valid_err
+
+def mean_fit(data,window_max_len,valid_month_num):
+	window_min = 2
+	window_max = window_max_len
+	errors = []
+	for window in range(window_min,window_max):
+		error = month_mean(data,window,valid_month_num)
+		print 'mean:',' window=',window,'error=',error
+		errors.append([window,error])
+	params = sorted(errors,key=lambda err:err[1],reverse=False)
+	
+	best_params = {}
+	best_params['best_window'] = params[0][0]
+	best_params['min_err'] = params[0][1]
+	return best_params
+
+def mean_predict(data,window,filePath,cq_num):
+	data = np.array(data)
+	try:
+		weight = np.array([[1.0/window]] * window)
+	except ZeroDivisionError:
+		print '[PREDICT_ERR]:window len = 0!'
+	month_num = 14
+	for i in range(0,month_num):
+		# index=0 indicates the column product_id
+		if data.shape[1] - window == 0:
+			raise ValueError('[PREDICT_ERR]:product_id can\'t be used!')
+		cur_cq = np.dot(data[:,data.shape[1] - window : data.shape[1]],weight)
+		data = np.column_stack((data,cur_cq))
+	saveData(data,filePath+str(cq_num)+'.csv')
+
+def month_percent(data,window,percent,valid_month_num):
+	data = np.array(data)
+	sample_num = data.shape[0]
+	valid_month = valid_month_num
+	test_data = data[:,0:data.shape[1]-valid_month]
+	errors = []
+	for i in range(0,valid_month):
+		# index=0 indicates the column product_id
+		if test_data.shape[1] - window == 0:
+			raise ValueError('[TRAIN_ERROR]:product_id can\'t be used!')
+		train_data = test_data[:,test_data.shape[1] - window:test_data.shape[1]]
+		cur_cq = np.array([np.percentile(sample,percent) for sample in train_data]).reshape(-1,1)		
+		test_data = np.column_stack((test_data,cur_cq))
+	try:
+		valid_err = np.sqrt( np.sum( (data-test_data)**2 ) / (valid_month*sample_num) )
+	except ZeroDivisionError:
+		print'[TRAIN_ERROR]:sample_num = 0!'
+	return valid_err
+
+def percent_fit(data,window_max_len,valid_month_num):
+	window_min = 2
+	window_max = window_max_len
+	
+	percent_min = 20
+	percent_max = 100
+	percent_stepsize = 5
+	
+	errors = []
+	for window in range(window_min,window_max):
+		for percent in range(percent_min,percent_max,percent_stepsize):
+			error = month_percent(data,window,percent,valid_month_num)
+			print 'percent:',' window=',window,'percent=',percent,'error=',error
+			errors.append([window,percent,error])
+	params = sorted(errors,key=lambda err:err[2],reverse=False)
+	
+	best_params = {}
+	best_params['best_window'] = params[0][0]
+	best_params['best_percent'] = params[0][1]
+	best_params['min_err']= params[0][2]
+	return best_params
+
+def percent_predict(data,window,percent,filePath,cq_num):
+	data = np.array(data)
+	month_num = 14
+	for i in range(0,month_num):
+		# index=0 indicates the column product_id
+		if data.shape[1] - window == 0:
+			raise ValueError('[PREDICT_ERR]:product_id can\'t be used!')
+		train_data = data[:,data.shape[1] - window:data.shape[1]]
+		cur_cq = np.array([np.percentile(sample,percent) for sample in train_data]).reshape(-1,1)		
+		data = np.column_stack((data,cur_cq))
+	saveData(data,filePath+str(cq_num)+'.csv')
+
+	
+def magic_box(data,window_max_len,valid_month_num,predict_dirPath,cq_num):
+	percent_best_params= percent_fit(data,window_max_len,valid_month_num)
+	mean_best_params = mean_fit(data,window_max_len,valid_month_num)
+	if percent_best_params['min_err'] < mean_best_params['min_err']:
+		print 'cq_num=',cq_num,'best_params:',percent_best_params,'\n'
+		print '-' * 80
+		percent_predict(data,percent_best_params['best_window'],percent_best_params['best_percent'],predict_dirPath,cq_num)
+	else:
+		print 'cq_num=',cq_num,'best_params:',mean_best_params,'\n'
+		print '-' * 80
+		mean_predict(data,mean_best_params['best_window'],predict_dirPath,cq_num)
+
+def gen_training_data(c_pq,c_pi,group_index,target_label,dirPath):
+	grouped_pq = c_pq.groupby(group_index)['ciiquantity'].agg(np.sum).reset_index()
+    	counter_grouped = grouped_pq.groupby(group_index[0])[group_index[1]]
+	#print counter_grouped.count()
+	product_set = get_product_set(counter_grouped,1,23)
+	# plot missing month ciiquantity for each product
+	# plt.show(counter_grouped.count().plot(kind='bar'))
+	# exit()
+	col_grouped = grouped_pq.groupby(group_index[0])
+	for key,items in col_grouped:
+		filePath = dirPath+str(key)+'.csv'
+		if target_label == 'product':
+			dropped_items = items.drop(group_index[0],axis=1)
+			training_data = dropped_items			
+		else:
+			dropped_items = items.drop(group_index[0],axis=1)
+			training_data = pd.merge(c_pi,dropped_items)
+		save_data(training_data,filePath)
+	return product_set
 def exit_wrapper(func):
 	def wrapper(*args,**kwargs):
 		func(*args,**kwargs)
@@ -34,124 +172,6 @@ def saveData(data,filePath):
 	data.to_csv(f,index=False)
 	f.close()
 
-def mean_fit(data):
-	window_min = 2
-	window_max = 4
-	errors = []
-	for window in range(window_min,window_max):
-		error = month_mean(data,window)
-		errors.append([window,error])
-	params = sorted(errors,key=lambda err:err[1],reverse=False)
-	
-	best_window = params[0][0]
-	return best_window
-
-def mean_predict(data,window,filePath,cq_num):
-	data = np.array(data)
-	try:
-		weight = np.array([[1.0/window]] * window)
-	except ZeroDivisionError:
-		print '[PREDICT_ERR]:window len = 0!'
-	month_num = 14
-	for i in range(0,month_num):
-		# index=0 indicates the column product_id
-		if data.shape[1] - window == 0:
-			raise ValueError('[PREDICT_ERR]:product_id can\'t be used!')
-		cur_cq = np.dot(data[:,data.shape[1] - window : data.shape[1]],weight)
-		data = np.column_stack((data,cur_cq))
-	saveData(data,filePath+str(cq_num)+'.csv')
-
-def month_mean(data,window):
-	data = np.array(data)
-	sample_num = data.shape[0]
-	try:
-		weight = np.array([[1.0/window]] * window)
-	except ZeroDivisionError:
-		print '[TRAIN_ERR]:window len = 0!'
-	valid_month = 3
-	test_data = data[:,0:data.shape[1]-valid_month]
-	errors = []
-	for i in range(0,valid_month):
-		# index=0 indicates the column product_id
-		if test_data.shape[1] - window == 0:
-			raise ValueError('[TRAIN_ERROR]:product_id can\'t be used!')
-		cur_cq = np.dot(test_data[:,test_data.shape[1] - window:test_data.shape[1]],weight)
-		test_data = np.column_stack((test_data,cur_cq))
-	try:
-		valid_err = np.sqrt( np.sum(data-test_data)**2 / (valid_month*sample_num) )
-	except ZeroDivisionError:
-		print'[TRAIN_ERROR]:sample_num = 0!'
-	return valid_err
-
-def percent_fit(data):
-	window_min = 2
-	window_max = 4
-	percent_min = 20
-	percent_max = 100
-	percent_stepsize = 5
-	errors = []
-	for window in range(window_min,window_max):
-		for percent in range(percent_min,percent_max,percent_stepsize):
-			error = month_percent(data,window,percent)
-			errors.append([window,percent,error])
-	params = sorted(errors,key=lambda err:err[2],reverse=False)
-	
-	best_window = params[0][0]
-	best_percent = params[0][1]
-	return best_window,best_percent
-
-def percent_predict(data,window,percent,filePath,cq_num):
-	data = np.array(data)
-	month_num = 14
-	for i in range(0,month_num):
-		# index=0 indicates the column product_id
-		if data.shape[1] - window == 0:
-			raise ValueError('[PREDICT_ERR]:product_id can\'t be used!')
-		train_data = data[:,data.shape[1] - window:data.shape[1]]
-		cur_cq = np.array([np.percentile(sample,percent) for sample in train_data]).reshape(-1,1)		
-		data = np.column_stack((data,cur_cq))
-	saveData(data,filePath+str(cq_num)+'.csv')
-
-def month_percent(data,window,percent):
-	data = np.array(data)
-	sample_num = data.shape[0]
-	valid_month = 3
-	test_data = data[:,0:data.shape[1]-valid_month]
-	errors = []
-	for i in range(0,valid_month):
-		# index=0 indicates the column product_id
-		if test_data.shape[1] - window == 0:
-			raise ValueError('[TRAIN_ERROR]:product_id can\'t be used!')
-		train_data = test_data[:,test_data.shape[1] - window:test_data.shape[1]]
-		cur_cq = np.array([np.percentile(sample,percent) for sample in train_data]).reshape(-1,1)		
-		test_data = np.column_stack((test_data,cur_cq))
-	try:
-		valid_err = np.sqrt( np.sum(data-test_data)**2 / (valid_month*sample_num) )
-	except ZeroDivisionError:
-		print'[TRAIN_ERROR]:sample_num = 0!'
-	return valid_err
-	
-
-def gen_training_data(c_pq,c_pi,group_index,target_label,dirPath):
-	grouped_pq = c_pq.groupby(group_index)['ciiquantity'].agg(np.sum).reset_index()
-    	counter_grouped = grouped_pq.groupby(group_index[0])[group_index[1]]
-	#print counter_grouped.count()
-	product_set = get_product_set(counter_grouped,1,23)
-	# plot missing month ciiquantity for each product
-	# plt.show(counter_grouped.count().plot(kind='bar'))
-	# exit()
-	col_grouped = grouped_pq.groupby(group_index[0])
-	for key,items in col_grouped:
-		filePath = dirPath+str(key)+'.csv'
-		if target_label == 'product':
-			dropped_items = items.drop(group_index[0],axis=1)
-			training_data = dropped_items			
-		else:
-			dropped_items = items.drop(group_index[0],axis=1)
-			training_data = pd.merge(c_pi,dropped_items)
-		save_data(training_data,filePath)
-	return product_set
-
 def save_data(data,filePath):
 	f = open(filePath,'w')
 	data.to_csv(f,index=False)
@@ -181,9 +201,10 @@ def product_fig(inPath,outPath):
 
 if __name__ == '__main__':		
 	
-	cq_min_len = 22
-	cq_max_len = 23
-
+	cq_min_len = 5
+	cq_max_len = 11
+	window_max_len = 8
+	valid_month_num = 3
 	month_dirPath = '../training_data/month/'
 	product_dirPath = '../training_data/product/'
 	product_figPath = '../training_data/images/month_quantity/'
@@ -206,6 +227,5 @@ if __name__ == '__main__':
 			row.insert(0,name)
 			# add id+cq into data
 			data.append(row)
-		best_window,best_percent = percent_fit(data)
-		percent_predict(data,best_window,best_percent,predict_dirPath,i)
+		magic_box(data,window_max_len,valid_month_num,predict_dirPath,i)
 
