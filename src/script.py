@@ -16,6 +16,7 @@ def show_grouped_data(grouped_data):
 		for subitem in items:
 			print subitem
 		print '-' * 30
+
 def get_product_set(data_grouped,cq_min_len,cq_max_len):
 	product_set = {}	
 	cq_min_len = 1
@@ -25,37 +26,45 @@ def get_product_set(data_grouped,cq_min_len,cq_max_len):
 		product_set[i] = [key for key,items in data_grouped if len(items) == i]
 	#print product_set		
 	return product_set
+
 def saveData(data,filePath):
 	f = open(filePath,'w')
 	data = pd.DataFrame(data)
 	data.to_csv(f,index=False)
 	f.close()
 
-def mean_fitdata):
+def mean_fit(data):
 	window_max = 4
 	errors = []
 	for window in range(2,window_max):
 		error = month_mean(data,window)
 		errors.append([window,error])
 	params = sorted(errors,key=lambda err:err[1],reverse=False)
+	
 	best_window = params[0][0]
 	return best_window
 
-def mean_predict():
-	pass
+def mean_predict(data,window,filePath,cq_num):
+	data = np.array(data)
+	weight = np.array([[1.0/window]] * window)
+   	month_num = 14
+	for i in range(0,month_num):
+		cur_cq = np.dot(data[:,data.shape[1] - window : data.shape[1]],weight)
+		data = np.column_stack((data,cur_cq))
+	saveData(data,filePath+str(cq_num)+'.csv')
 
 def month_mean(data,window):
 	data = np.array(data)
+	sample_num = data.shape[0]
 	weight = np.array([[1.0/window]] * window)
 	valid_month = 3
 	test_data = data[:,0:data.shape[1]-valid_month]
-
 	errors = []
 	for i in range(0,valid_month):
 		cur_cq = np.dot(test_data[:,test_data.shape[1] - window:test_data.shape[1]],weight)
 		
 		test_data = np.column_stack((test_data,cur_cq))
-	return np.sum(data-test_data)**2
+	return np.sqrt( np.sum(data-test_data)**2 / (valid_month*sample_num) )
 
 def month_percent(data,window=3,percent=0.6):
 	pass
@@ -115,7 +124,7 @@ if __name__ == '__main__':
 	month_dirPath = '../training_data/month/'
 	product_dirPath = '../training_data/product/'
 	product_figPath = '../training_data/images/month_quantity/'
-
+	predict_dirPath = '../predict_data/'
 	pq = pd.read_csv('../product_data/product_quantity.txt')
 	pi = pd.read_csv('../product_data/product_info.txt')
 
@@ -123,19 +132,19 @@ if __name__ == '__main__':
 	c_pq.set_index(['product_id','product_date'])
 	c_pi = pi.copy()
 	c_pq['product_date'] = c_pq['product_date'].apply(lambda x:x[:7])
-	
-	#gen_training_data(c_pq,c_pi,['product_date','product_id'],'month',month_dirPath)
-
-	#product_not_exist = product_fig(product_dirPath,product_figPath)
-	#print 'product_not_exist: ',product_not_exist,'\nnumber of product not exist: ',len(product_not_exist)
-
 	product_set = gen_training_data(c_pq,c_pi,['product_id','product_date'],'product',product_dirPath)
 	for i in range(cq_min_len,cq_max_len + 1):
 		data = []
 		for name in product_set[i]:
 			tmp = pd.read_csv(product_dirPath+str(name)+'.csv')
-			data.append(tmp.loc[:,'ciiquantity'].tolist())
-		mean_fit(data)
+			# get cq values
+			row = tmp.loc[:,'ciiquantity'].tolist()
+			# insert product_id
+			row.insert(0,name)
+			# add id+cq into data
+			data.append(row)
+		best_window = mean_fit(data)
+		mean_predict(data,best_window,predict_dirPath,i)
 		exit()
 	
 
