@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import numpy as np
 from product_not_exist_info import *
@@ -80,6 +81,7 @@ def data_to_rank(data,label):
 		else:
 			data = 4
 	return data
+
 def cooperate_date_imputer(data):
 	if data == '-1':
 		data = '2014-01-01'
@@ -95,16 +97,37 @@ def start_date_imputer(data):
 	return data
 
 if __name__ == '__main__':
+	
+	ordered_submit_file_path = '../ordered_submission.csv'
+	ordered_data = pd.read_csv(ordered_submit_file_path)	
+	format_data = pd.DataFrame()
+	for i in range(1,14 + 1):
+		month_data = pd.DataFrame()
+		month_data['product_id'] = ordered_data['0']
+		if i == 1:
+			product_month = '2015-12-01'
+		elif i > 1 and i <= 10:
+			product_month = '2016-0'+str(i-1)+'-01'
+		elif i > 10 and i < 14:
+			product_month = '2016-'+str(i-1)+'-01'
+		else:
+			product_month = '2017-01-01'
 
+		month_data['product_month'] = product_month
+		month_data['ciiquantity_month'] = ordered_data[str(i)]
+		format_data = format_data.append(month_data,ignore_index=True)
+	save_data(format_data,'../prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
+	exit()
 	product_info_path = '../product_data/product_info.txt'
+	
+	# ordered submission and set 0 to some product
 	idx_pair = set_zero(product_info_path)
 	submit_data = pd.read_csv('../submission.csv')	
-	
 	for key in idx_pair:
 		product_idx = submit_data['0'][submit_data['0'] == key].index[0]
 		submit_data.loc[product_idx,[str(x) for x in range(1,idx_pair[key])]] = 0
 	submit_data = submit_data.sort(columns='0')
-	save_data(submit_data,'../ordered_submission.csv')
+	save_data(submit_data,ordered_submit_file_path)
 	exit()
 	
 	data = pd.read_csv(product_info_path)
