@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+from product_not_exist_info import *
 
 def month_mean(data,window,valid_month_num):
 	data = np.array(data)
@@ -30,7 +30,7 @@ def mean_fit(data,window_max_len,valid_month_num):
 	window_min = 2
 	window_max = window_max_len
 	errors = []
-	for window in range(window_min,window_max):
+	for window in range(window_min,window_max + 1):
 		error = month_mean(data,window,valid_month_num)
 		print 'mean:',' window=',window,'error=',error
 		errors.append([window,error])
@@ -42,6 +42,7 @@ def mean_fit(data,window_max_len,valid_month_num):
 	return best_params
 
 def mean_predict(data,window,filePath,cq_num):
+
 	data = np.array(data)
 	try:
 		weight = np.array([[1.0/window]] * window)
@@ -84,7 +85,7 @@ def percent_fit(data,window_max_len,valid_month_num):
 	percent_stepsize = 5
 	
 	errors = []
-	for window in range(window_min,window_max):
+	for window in range(window_min,window_max + 1):
 		for percent in range(percent_min,percent_max,percent_stepsize):
 			error = month_percent(data,window,percent,valid_month_num)
 			print 'percent:',' window=',window,'percent=',percent,'error=',error
@@ -111,16 +112,25 @@ def percent_predict(data,window,percent,filePath,cq_num):
 
 	
 def magic_box(data,window_max_len,valid_month_num,predict_dirPath,cq_num):
-	percent_best_params= percent_fit(data,window_max_len,valid_month_num)
-	mean_best_params = mean_fit(data,window_max_len,valid_month_num)
-	if percent_best_params['min_err'] < mean_best_params['min_err']:
-		print 'cq_num=',cq_num,'best_params:',percent_best_params,'\n'
+	if i >=1 and i < 3:
+		print 'cq_num=',cq_num,'using mean method!','\n'
 		print '-' * 80
-		percent_predict(data,percent_best_params['best_window'],percent_best_params['best_percent'],predict_dirPath,cq_num)
+		mean_predict(data,np.array(data).shape[1] - 1,predict_dirPath,cq_num)
 	else:
-		print 'cq_num=',cq_num,'best_params:',mean_best_params,'\n'
-		print '-' * 80
-		mean_predict(data,mean_best_params['best_window'],predict_dirPath,cq_num)
+		if i >=3 and i < 11:
+			window_max_len = 2
+			valid_month_num = 1
+		
+		percent_best_params= percent_fit(data,window_max_len,valid_month_num)
+		mean_best_params = mean_fit(data,window_max_len,valid_month_num)
+		if percent_best_params['min_err'] < mean_best_params['min_err']:
+			print 'cq_num=',cq_num,'best_params:',percent_best_params,'\n'
+			print '-' * 80
+			percent_predict(data,percent_best_params['best_window'],percent_best_params['best_percent'],predict_dirPath,cq_num)
+		else:
+			print 'cq_num=',cq_num,'best_params:',mean_best_params,'\n'
+			print '-' * 80
+			mean_predict(data,mean_best_params['best_window'],predict_dirPath,cq_num)
 
 def gen_training_data(c_pq,c_pi,group_index,target_label,dirPath):
 	grouped_pq = c_pq.groupby(group_index)['ciiquantity'].agg(np.sum).reset_index()
@@ -200,32 +210,36 @@ def product_fig(inPath,outPath):
 	return product_not_exist
 
 if __name__ == '__main__':		
-	
-	cq_min_len = 5
-	cq_max_len = 11
-	window_max_len = 8
-	valid_month_num = 3
-	month_dirPath = '../training_data/month/'
-	product_dirPath = '../training_data/product/'
-	product_figPath = '../training_data/images/month_quantity/'
-	predict_dirPath = '../predict_data/'
-	pq = pd.read_csv('../product_data/product_quantity.txt')
-	pi = pd.read_csv('../product_data/product_info.txt')
 
-	c_pq = pq.copy()
-	c_pq.set_index(['product_id','product_date'])
-	c_pi = pi.copy()
-	c_pq['product_date'] = c_pq['product_date'].apply(lambda x:x[:7])
-	product_set = gen_training_data(c_pq,c_pi,['product_id','product_date'],'product',product_dirPath)
-	for i in range(cq_min_len,cq_max_len + 1):
-		data = []
-		for name in product_set[i]:
-			tmp = pd.read_csv(product_dirPath+str(name)+'.csv')
-			# get cq values
-			row = tmp.loc[:,'ciiquantity'].tolist()
-			# insert product_id
-			row.insert(0,name)
-			# add id+cq into data
-			data.append(row)
-		magic_box(data,window_max_len,valid_month_num,predict_dirPath,i)
+	print product_not_exist
+#	cq_min_len = 1
+#	cq_max_len = 23
+#	window_max_len = 8
+#	valid_month_num = 3
+#	month_dirPath = '../training_data/month/'
+#	product_dirPath = '../training_data/product/'
+#	product_figPath = '../training_data/images/month_quantity/'
+#	predict_dirPath = '../predict_data/'
+#	pq = pd.read_csv('../product_data/product_quantity.txt')
+#	pi = pd.read_csv('../product_data/product_info.txt')
+#
+#	c_pq = pq.copy()
+#	c_pq.set_index(['product_id','product_date'])
+#	c_pi = pi.copy()
+#	c_pq['product_date'] = c_pq['product_date'].apply(lambda x:x[:7])
+#	product_set = gen_training_data(c_pq,c_pi,['product_id','product_date'],'product',product_dirPath)
+#	
+#	for i in range(cq_min_len,cq_max_len + 1):
+#		data = []
+#		for name in product_set[i]:
+#			tmp = pd.read_csv(product_dirPath+str(name)+'.csv')
+#			# get cq values
+#			row = tmp.loc[:,'ciiquantity'].tolist()
+#			# insert product_id
+#			row.insert(0,name)
+#			# add id+cq into data
+#			data.append(row)
+#		magic_box(data,window_max_len,valid_month_num,predict_dirPath,i)
+	
+
 

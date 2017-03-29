@@ -93,78 +93,11 @@ def get_month_from_date(data):
 def start_date_imputer(data):
 	for i in range(0,data.shape[0]):
 		if data['startdate'][i] == '-1' or data['startdate'][i] == '1753-01-01':
-			data['startdate'][i] = data['cooperatedate'][i]
+			data.ix[i,'startdate'] = data.ix[i,'cooperatedate']
 	return data
 
-if __name__ == '__main__':
-	
-	ordered_submit_file_path = '../ordered_submission.csv'
-	ordered_data = pd.read_csv(ordered_submit_file_path)	
-	format_data = pd.DataFrame()
-	for i in range(1,14 + 1):
-		month_data = pd.DataFrame()
-		month_data['product_id'] = ordered_data['0']
-		if i == 1:
-			product_month = '2015-12-01'
-		elif i > 1 and i <= 10:
-			product_month = '2016-0'+str(i-1)+'-01'
-		elif i > 10 and i < 14:
-			product_month = '2016-'+str(i-1)+'-01'
-		else:
-			product_month = '2017-01-01'
-
-		month_data['product_month'] = product_month
-		month_data['ciiquantity_month'] = ordered_data[str(i)]
-		format_data = format_data.append(month_data,ignore_index=True)
-	save_data(format_data,'../prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
-	exit()
-	product_info_path = '../product_data/product_info.txt'
-	
-	# ordered submission and set 0 to some product
-	idx_pair = set_zero(product_info_path)
-	submit_data = pd.read_csv('../submission.csv')	
-	for key in idx_pair:
-		product_idx = submit_data['0'][submit_data['0'] == key].index[0]
-		submit_data.loc[product_idx,[str(x) for x in range(1,idx_pair[key])]] = 0
-	submit_data = submit_data.sort(columns='0')
-	save_data(submit_data,ordered_submit_file_path)
-	exit()
-	
-	data = pd.read_csv(product_info_path)
-	district_set = ['district_id1','district_id2','district_id3','district_id4']
-	for col in district_set:
-		data.loc[:,col] = map(lambda x:data_to_rank(x,col),data[col])
-	
-	data.loc[:,'cooperatedate'] = map(lambda x:cooperate_date_imputer(x),data['cooperatedate'])
-	data = start_date_imputer(data)
-	date_set = ['startdate','cooperatedate']
-	for dat in date_set:
-		data.loc[:,dat] = map(lambda x:get_month_from_date(x),data[dat])
-	cluster_cols = ['product_id','district_id1','district_id2','district_id3','district_id4','lat','lon','eval','eval2','eval3','eval4','voters','startdate','cooperatedate','maxstock']	
-	cluster_data = data[cluster_cols]
-
-	dummy_cols = ['district_id1','district_id2','district_id3','district_id4','eval','eval2','startdate','cooperatedate']	
-	cluster_data = pd.get_dummies(cluster_data,columns=dummy_cols)
-	
-	s_product_not_exist = set(product_not_exist)
-	s_product_id = set(cluster_data['product_id'])
-	product_pool = list(s_product_id - s_product_not_exist)
-#	nn_pair = {}
-#	
-#	counter = 0	
-#	for id_1 in product_not_exist:
-#			
-#			dists = []
-#			counter += 1
-#			for id_2 in product_pool:
-#				dist = np.sqrt( np.sum( (cluster_data.loc[id_1 - 1][1:cluster_data.shape[1]] - cluster_data.loc[id_2 - 1][1:cluster_data.shape[1]])**2 ) )
-#				dists.append([id_1,id_2,dist])
-#			params = sorted(dists,key=lambda d:d[2],reverse=False)
-#			print 'Over/Total','(',counter,'/505)','Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
-#			nn_pair[params[0][0]] = params[0][1]
-#	print len(nn_pair),nn_pair
-	print nn_pair	
-	predict_dirPath = '../predict_data/'
+def get_format_data(product_info_path,predict_dirPath,nn_pair):
+	# get unordered and raw submission
 	predict_data = pd.DataFrame()
 	cq_min_num = 1
 	cq_max_num = 23
@@ -181,4 +114,83 @@ if __name__ == '__main__':
 		partner = predict_data.loc[index].copy()
 		partner[0] = key
 		predict_data = predict_data.append(partner,ignore_index=True)
-	save_data(predict_data,'../submission.csv')
+	
+	submit_data = predict_data
+	
+	# ordered submission and set 0 to some product
+	idx_pair = set_zero(product_info_path)
+	for key in idx_pair:
+		product_idx = submit_data[0][submit_data[0] == key].index[0]
+		submit_data.loc[product_idx,[x for x in range(1,idx_pair[key])]] = 0
+	submit_data = submit_data.sort_values(by = 0)
+        
+	ordered_data = submit_data	
+	
+	#ordered_data = pd.read_csv(ordered_submit_file_path)	
+	format_data = pd.DataFrame()
+	for i in range(1,14 + 1):
+		month_data = pd.DataFrame()
+		month_data['product_id'] = ordered_data[0]
+		if i == 1:
+			product_month = '2015-12-01'
+		elif i > 1 and i <= 10:
+			product_month = '2016-0'+str(i-1)+'-01'
+		elif i > 10 and i < 14:
+			product_month = '2016-'+str(i-1)+'-01'
+		else:
+			product_month = '2017-01-01'
+
+		month_data['product_month'] = product_month
+		month_data['ciiquantity_month'] = ordered_data[i]
+		format_data = format_data.append(month_data,ignore_index=True)
+	save_data(format_data,'prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
+
+def product_preprocessor(product_info_path):
+	data = pd.read_csv(product_info_path)
+	district_set = ['district_id1','district_id2','district_id3','district_id4']
+	for col in district_set:
+		data.loc[:,col] = map(lambda x:data_to_rank(x,col),data[col])
+	
+	data.loc[:,'cooperatedate'] = map(lambda x:cooperate_date_imputer(x),data['cooperatedate'])
+	data = start_date_imputer(data)
+	date_set = ['startdate','cooperatedate']
+	for dat in date_set:
+		data.loc[:,dat] = map(lambda x:get_month_from_date(x),data[dat])
+	cluster_cols = ['product_id','district_id1','district_id2','district_id3','district_id4','lat','lon','eval','eval2','eval3','eval4','voters','startdate','cooperatedate','maxstock']	
+	cluster_data = data[cluster_cols]
+
+	dummy_cols = ['district_id1','district_id2','district_id3','district_id4','eval','eval2','startdate','cooperatedate']	
+	cluster_data = pd.get_dummies(cluster_data,columns=dummy_cols)
+	return cluster_data
+
+def get_nn_pair(cluster_data,product_not_exist):
+	s_product_not_exist = set(product_not_exist)
+	s_product_id = set(cluster_data['product_id'])
+	product_pool = list(s_product_id - s_product_not_exist)
+	nn_pair = {}
+	
+	counter = 0	
+	for id_1 in product_not_exist:
+			
+			dists = []
+			counter += 1
+			for id_2 in product_pool:
+				dist = np.sqrt( np.sum( (cluster_data.loc[id_1 - 1][1:cluster_data.shape[1]] - cluster_data.loc[id_2 - 1][1:cluster_data.shape[1]])**2 ) )
+				dists.append([id_1,id_2,dist])
+			params = sorted(dists,key=lambda d:d[2],reverse=False)
+			print 'Over/Total','(',counter,'/505)','Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
+			nn_pair[params[0][0]] = params[0][1]
+	return nn_pair
+
+if __name__ == '__main__':
+	
+	product_info_path = '../product_data/product_info.txt'
+	predict_dirPath = '../predict_data/'
+	
+	# preprocess product_info data
+	#cluster_data = product_preprocessor(product_info_path)
+	
+	# find the nearest neighbor of product and store nn_pair in file
+	#nn_pair = get_nn_pair(cluster_data,product_not_exist)
+	
+	get_format_data(product_info_path,predict_dirPath,nn_pair)
