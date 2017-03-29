@@ -24,6 +24,18 @@ def get_month_ratio():
 		month_ratio.append(col_ratio)
 	print month_ratio
 
+def set_zero(product_info_file_path):
+	product = pd.read_csv(product_info_file_path)
+	idx_pair = {}
+	data = product[['product_id','startdate']][product.startdate > '2015-11-30'].copy()
+	for i in range(0,data.shape[0]):
+		 if data['startdate'].tolist()[i][0:4] == '2015':
+			 idx_pair[data['product_id'].tolist()[i]] = 1
+		 if data['startdate'].tolist()[i][0:4] == '2016':
+			 idx_pair[data['product_id'].tolist()[i]] = int(data['startdate'].tolist()[i][5:7]) + 1
+	return idx_pair	
+
+
 def data_to_rank(data,label):
 	if label == 'district_id1':
 		if  data >=6500 and data < 13000:
@@ -85,6 +97,16 @@ def start_date_imputer(data):
 if __name__ == '__main__':
 
 	product_info_path = '../product_data/product_info.txt'
+	idx_pair = set_zero(product_info_path)
+	submit_data = pd.read_csv('../submission.csv')	
+	
+	for key in idx_pair:
+		product_idx = submit_data['0'][submit_data['0'] == key].index[0]
+		submit_data.loc[product_idx,[str(x) for x in range(1,idx_pair[key])]] = 0
+	submit_data = submit_data.sort(columns='0')
+	save_data(submit_data,'../ordered_submission.csv')
+	exit()
+	
 	data = pd.read_csv(product_info_path)
 	district_set = ['district_id1','district_id2','district_id3','district_id4']
 	for col in district_set:
@@ -104,20 +126,22 @@ if __name__ == '__main__':
 	s_product_not_exist = set(product_not_exist)
 	s_product_id = set(cluster_data['product_id'])
 	product_pool = list(s_product_id - s_product_not_exist)
-	nn_pair = {}
-	
-	for id_1 in product_not_exist[0:2]:
-			
-			dists = []
-			for id_2 in product_pool:
-				dist = np.sqrt( np.sum( (cluster_data.loc[id_1 - 1][1:cluster_data.shape[1]] - cluster_data.loc[id_2 - 1][1:cluster_data.shape[1]])**2 ) )
-				dists.append([id_1,id_2,dist])
-			params = sorted(dists,key=lambda d:d[2],reverse=False)
-			print 'Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
-			nn_pair[params[0][0]] = params[0][1]
-	print len(nn_pair),nn_pair
+#	nn_pair = {}
+#	
+#	counter = 0	
+#	for id_1 in product_not_exist:
+#			
+#			dists = []
+#			counter += 1
+#			for id_2 in product_pool:
+#				dist = np.sqrt( np.sum( (cluster_data.loc[id_1 - 1][1:cluster_data.shape[1]] - cluster_data.loc[id_2 - 1][1:cluster_data.shape[1]])**2 ) )
+#				dists.append([id_1,id_2,dist])
+#			params = sorted(dists,key=lambda d:d[2],reverse=False)
+#			print 'Over/Total','(',counter,'/505)','Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
+#			nn_pair[params[0][0]] = params[0][1]
+#	print len(nn_pair),nn_pair
+	print nn_pair	
 	predict_dirPath = '../predict_data/'
-	
 	predict_data = pd.DataFrame()
 	cq_min_num = 1
 	cq_max_num = 23
@@ -128,11 +152,10 @@ if __name__ == '__main__':
 		tmp = cq_data.iloc[:,cols]
 		tmp.columns = range(14+1)
 		predict_data = predict_data.append(tmp,ignore_index=True)
-
+	
 	for key in nn_pair:
 		index = predict_data[0][predict_data[0] == nn_pair[key]].index
 		partner = predict_data.loc[index].copy()
 		partner[0] = key
-		predict_data = predict_data.append(partner)
+		predict_data = predict_data.append(partner,ignore_index=True)
 	save_data(predict_data,'../submission.csv')
-	pass
