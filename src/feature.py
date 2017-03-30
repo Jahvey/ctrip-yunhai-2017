@@ -1,8 +1,10 @@
 import time
+import copy
 import pandas as pd
 import numpy as np
 from product_not_exist_info import *
 from script import *
+from sklearn import preprocessing
 
 def get_month_ratio():
 	month_dirPath = '../training_data/month/'
@@ -170,9 +172,11 @@ def get_nn_pair(cluster_data,product_not_exist):
 	product_pool = list(s_product_id - s_product_not_exist)
 	product_nn_pair = {}
 	
+	# min max scaler	
+	cluster_data.ix[:,1:cluster_data.shape[1]] = cluster_data.ix[:,1:cluster_data.shape[1]].apply(lambda x: (x - np.min(x)) / (np.max(x) - np.min(x)))
+	
 	counter = 0	
 	for id_1 in product_not_exist:
-			
 			dists = []
 			counter += 1
 			for id_2 in product_pool:
@@ -190,9 +194,10 @@ if __name__ == '__main__':
 	predict_dirPath = '../predict_data/'
 	
 	# preprocess product_info data
-	#cluster_data = product_preprocessor(product_info_path)
-	
+	cluster_data = product_preprocessor(product_info_path)
 	# find the nearest neighbor of product and store nn_pair in file
-	#product_nn_pair = get_nn_pair(cluster_data,product_not_exist)
+	product_nn_pair = get_nn_pair(cluster_data,product_not_exist)
+	pass
+	exit()
 	
 	get_format_data(product_info_path,predict_dirPath,product_nn_pair,idx_pair)
