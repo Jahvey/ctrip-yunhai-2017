@@ -53,7 +53,7 @@ train_month.fillna(train_month_impute_value,inplace=True)
 
 average_all=pd.DataFrame(train_month.mean(axis=1),columns=['average_all']).reset_index()
 
-submission=pd.read_csv('prediction_zhpmatrix_20170329.txt')
+submission=pd.read_csv('../product_data/prediction_lilei_20170320.txt')
 
 col=['product_id','product_month','ciiquantity_month']
 
@@ -68,4 +68,4 @@ out.ciiquantity_month=out.average_all
 
 out.drop(['average_all'],axis=1,inplace=True)
 
-out.to_csv(str(month_range)+'_'+str(train_month_impute_value)+'_'+str(out_month_impute_value)+'.txt',index=False)
+out.to_csv('rule_prediction/'+str(month_range)+'_'+str(train_month_impute_value)+'_'+str(out_month_impute_value)+'.txt',index=False)

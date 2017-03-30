@@ -96,7 +96,7 @@ def start_date_imputer(data):
 			data.ix[i,'startdate'] = data.ix[i,'cooperatedate']
 	return data
 
-def get_format_data(product_info_path,predict_dirPath,nn_pair):
+def get_format_data(product_info_path,predict_dirPath,nn_pair,idx_pair):
 	# get unordered and raw submission
 	predict_data = pd.DataFrame()
 	cq_min_num = 1
@@ -118,7 +118,8 @@ def get_format_data(product_info_path,predict_dirPath,nn_pair):
 	submit_data = predict_data
 	
 	# ordered submission and set 0 to some product
-	idx_pair = set_zero(product_info_path)
+	#idx_pair = set_zero(product_info_path)
+	
 	for key in idx_pair:
 		product_idx = submit_data[0][submit_data[0] == key].index[0]
 		submit_data.loc[product_idx,[x for x in range(1,idx_pair[key])]] = 0
@@ -143,7 +144,7 @@ def get_format_data(product_info_path,predict_dirPath,nn_pair):
 		month_data['product_month'] = product_month
 		month_data['ciiquantity_month'] = ordered_data[i]
 		format_data = format_data.append(month_data,ignore_index=True)
-	save_data(format_data,'prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
+	save_data(format_data,'model_prediction/prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
 
 def product_preprocessor(product_info_path):
 	data = pd.read_csv(product_info_path)
@@ -167,7 +168,7 @@ def get_nn_pair(cluster_data,product_not_exist):
 	s_product_not_exist = set(product_not_exist)
 	s_product_id = set(cluster_data['product_id'])
 	product_pool = list(s_product_id - s_product_not_exist)
-	nn_pair = {}
+	product_nn_pair = {}
 	
 	counter = 0	
 	for id_1 in product_not_exist:
@@ -179,8 +180,9 @@ def get_nn_pair(cluster_data,product_not_exist):
 				dists.append([id_1,id_2,dist])
 			params = sorted(dists,key=lambda d:d[2],reverse=False)
 			print 'Over/Total','(',counter,'/505)','Finding ',id_1,' Best partner:(',params[0][0],params[0][1],')'
-			nn_pair[params[0][0]] = params[0][1]
-	return nn_pair
+			product_nn_pair[params[0][0]] = params[0][1]
+	print product_nn_pair
+	return product_nn_pair
 
 if __name__ == '__main__':
 	
@@ -191,6 +193,6 @@ if __name__ == '__main__':
 	#cluster_data = product_preprocessor(product_info_path)
 	
 	# find the nearest neighbor of product and store nn_pair in file
-	#nn_pair = get_nn_pair(cluster_data,product_not_exist)
+	#product_nn_pair = get_nn_pair(cluster_data,product_not_exist)
 	
-	get_format_data(product_info_path,predict_dirPath,nn_pair)
+	get_format_data(product_info_path,predict_dirPath,product_nn_pair,idx_pair)
