@@ -150,6 +150,11 @@ def get_format_data(product_info_path,predict_dirPath,nn_pair,idx_pair):
 
 def product_preprocessor(product_info_path):
 	data = pd.read_csv(product_info_path)
+
+	# fill maxstock with avg value of the column
+	stock_mean = np.mean(data['maxstock'][data.maxstock != -1])
+	data.ix[:,'maxstock'][data.maxstock == -1] = stock_mean
+	
 	district_set = ['district_id1','district_id2','district_id3','district_id4']
 	for col in district_set:
 		data.loc[:,col] = map(lambda x:data_to_rank(x,col),data[col])
