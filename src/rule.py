@@ -49,11 +49,12 @@ def idx_to_date(data):
 	return data
 if __name__ == '__main__':
 	
+	#data_watching()
 	product_quantity = pd.read_csv('../product_data/product_quantity.txt')
 	product_quantity.sort_values(['product_id','product_date'],inplace=True)
 	product_quantity['product_month']=product_quantity['product_date'].apply(lambda x: x[:7])
 
-	start_month = '2014-12'
+	start_month = '2014-01'
 	end_month = '2015-11'
 	month_range = (pd.to_datetime(end_month) - pd.to_datetime(start_month)).days/30 + 1
 	product_quantity=product_quantity[product_quantity.product_month>=start_month]

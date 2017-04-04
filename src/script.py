@@ -214,8 +214,8 @@ if __name__ == '__main__':
 	cq_min_len = 1
 	cq_max_len = 23
 	
-	window_max_len = 8
-	valid_month_num = 3
+	window_max_len = 5
+	valid_month_num = 4
 	
 	
 	month_dirPath = '../training_data/month/'

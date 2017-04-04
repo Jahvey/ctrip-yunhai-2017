@@ -38,7 +38,6 @@ def set_zero(product_info_file_path):
 			 idx_pair[data['product_id'].tolist()[i]] = int(data['startdate'].tolist()[i][5:7]) + 1
 	return idx_pair	
 
-
 def data_to_rank(data,label):
 	if label == 'district_id1':
 		if  data >=6500 and data < 13000:

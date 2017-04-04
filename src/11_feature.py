@@ -38,7 +38,6 @@ def set_zero(product_info_file_path):
 			 idx_pair[data['product_id'].tolist()[i]] = int(data['startdate'].tolist()[i][5:7]) + 1
 	return idx_pair	
 
-
 def data_to_rank(data,label):
 	if label == 'district_id1':
 		if  data >=6500 and data < 13000:
@@ -103,21 +102,24 @@ def get_format_data(product_info_path,predict_dirPath,nn_pair,idx_pair):
 	predict_data = pd.DataFrame()
 	cq_min_num = 1
 	cq_max_num = 23
-	for i in range(cq_min_num,cq_max_num + 1):
-		cq_data = pd.read_csv(predict_dirPath+str(i)+'.csv')
-		cols = range(cq_data.shape[1] - 14,cq_data.shape[1])
-		cols.insert(0,0)
-		tmp = cq_data.iloc[:,cols]
-		tmp.columns = range(14+1)
-		predict_data = predict_data.append(tmp,ignore_index=True)
-
-		
-	for key in nn_pair:
-		index = predict_data[0][predict_data[0] == nn_pair[key]].index
-		partner = predict_data.loc[index].copy()
-		partner[0] = key
-		predict_data = predict_data.append(partner,ignore_index=True)
 	
+	cq_num = 11
+	cq_data = pd.read_csv(predict_dirPath+str(cq_num)+'.csv')
+	cols = range(cq_data.shape[1] - 14,cq_data.shape[1])
+	cols.insert(0,0)
+	tmp = cq_data.iloc[:,cols]
+	tmp.columns = range(14+1)
+	predict_data = predict_data.append(tmp,ignore_index=True)
+
+	# using impute data 132 to fill the product without info
+	product_info = pd.read_csv(product_info_path)
+	filling_product_set = set(product_info.ix[:,'product_id'].tolist()) - set(predict_data.ix[:,0].tolist())
+	for idx in filling_product_set:
+		impute_data = 132
+		filling_data = [impute_data] * 14
+		filling_data.insert(0,idx)
+		filling_data = pd.DataFrame(np.array([filling_data]))
+		predict_data = predict_data.append(filling_data,ignore_index=True)
 	submit_data = predict_data
 	
 	# ordered submission and set 0 to some product
@@ -146,7 +148,7 @@ def get_format_data(product_info_path,predict_dirPath,nn_pair,idx_pair):
 		month_data['product_month'] = product_month
 		month_data['ciiquantity_month'] = ordered_data[i]
 		format_data = format_data.append(month_data,ignore_index=True)
-	save_data(format_data,'model_prediction/prediction_zhpmatrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
+	save_data(format_data,'model_prediction/prediction_matrix_'+time.strftime('%Y%m%d',time.localtime(time.time()))+'.txt')
 
 def product_preprocessor(product_info_path):
 	data = pd.read_csv(product_info_path)
@@ -196,7 +198,7 @@ def get_nn_pair(cluster_data,product_not_exist):
 if __name__ == '__main__':
 	
 	product_info_path = '../product_data/product_info.txt'
-	predict_dirPath = '../_predict_data/'
+	predict_dirPath = '../11_predict_data/'
 	
 	# preprocess product_info data
 	#cluster_data = product_preprocessor(product_info_path)
